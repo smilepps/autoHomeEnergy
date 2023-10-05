@@ -1,6 +1,5 @@
-// Подключение библиотек
 #include <Wire.h>                 // Для работы с I2C
-#include <Adafruit_INA226.h>      // Для работы с датчиком напряжения INA226
+#include <GyverINA.h>             // Для работы с датчиком напряжения INA226
 #include <Adafruit_Fingerprint.h> // Для работы со ёмкостным сканером отпечатков пальцев R503
 
 // Подключение датчика температуры к пину A0
@@ -10,12 +9,8 @@ const int temperatureSensorPin = A0;
 const int relayPins[] = {2, 3, 4, 5, 6, 7, 8, 9};
 const int numRelays = sizeof(relayPins) / sizeof(relayPins[0]);
 
-// Адрес датчика напряжения INA226
-// Если у вас плата Arduino UNO R3, то пины SDA и SCL для шины I2C находятся на пинах A4 и A5 соответственно.
-const uint8_t ina226Address = 0x40;
-
 // Создание объекта для работы с датчиком напряжения
-Adafruit_INA226 ina226;
+INA226 ina226;
 
 // Переключатель состояния на Arduino
 const int switchPin = 6;
@@ -44,12 +39,7 @@ void setup()
   Serial.begin(9600);
 
   // Инициализация датчика напряжения
-  if (!ina226.begin(ina226Address))
-  {
-    Serial.println("Не удалось инициализировать датчик напряжения INA226");
-    while (1)
-      ;
-  }
+  ina226.begin();
 
   // Настройка пинов реле как выходов
   for (int i = 0; i < numRelays; i++)
@@ -57,13 +47,8 @@ void setup()
     pinMode(relayPins[i], OUTPUT);
   }
 
-  // Настройка пина переключателя поддежания температуры как входа
+  // Настройка пина переключателя поддержания температуры как входа
   pinMode(switchPin, INPUT);
-
-  pinMode(extraRelayPin, INPUT_PULLUP);
-
-  // Настройка прерывания для сканера отпечатков пальцев
-  attachInterrupt(digitalPinToInterrupt(fingerprintSensorWAKEUP), fingerprintInterrupt, FALLING);
 
   // Настройка пинов для соединения с ёмкостным сканером отпечатков пальцев R503
   SoftwareSerial mySerial(fingerprintSensorRX, fingerprintSensorTX);
@@ -92,14 +77,10 @@ void loop()
   float temperatureCelsius = (temperature * 0.48875) - 50.0;
 
   // Считывание напряжения с датчика INA226
-  float voltage = ina226.readBusVoltage();
+  float voltage = ina226.getVoltage();
 
-  Serial.print("  Температура: ");
-  Serial.print(temperatureCelsius);
-  Serial.print("°C");
-  Serial.print("  Напряжение: ");
-  Serial.print(voltage);
-  Serial.println(" V");
+  Serial.print("  Температура: " + String(temperatureCelsius) + "°C");
+  Serial.print("  Напряжение: " + String(voltage) + " V");
 
   // Управление реле в зависимости от значений температуры и напряжения
   if (voltage > 18.0 && voltage < 23.0)
@@ -111,11 +92,14 @@ void loop()
       delay(boilerRelayDelay);
       digitalWrite(relayPins[3], LOW);
     }
+
     // Включение реле стартера на заданное время
     digitalWrite(relayPins[0], HIGH);
     delay(starterRelayDelay);
     digitalWrite(relayPins[0], LOW);
+
     delay(iterationDelay); // Задержка
+
     if (temperatureCelsius < 25.0)
     {
       // Включение реле печки на заданное время
@@ -123,6 +107,7 @@ void loop()
       delay(ovenRelayDelay);
       digitalWrite(relayPins[2], LOW);
     }
+
     digitalWrite(relayPins[1], LOW);
   }
   else if (temperatureCelsius < 19.0 && switchState)
@@ -134,11 +119,14 @@ void loop()
       delay(boilerRelayDelay);
       digitalWrite(relayPins[3], LOW);
     }
+
     // Включение реле стартера на заданное время
     digitalWrite(relayPins[0], HIGH);
     delay(starterRelayDelay);
     digitalWrite(relayPins[0], LOW);
+
     delay(iterationDelay); // Задержка
+
     if (temperatureCelsius < 25.0)
     {
       // Включение реле печки на заданное время
@@ -146,6 +134,7 @@ void loop()
       delay(ovenRelayDelay);
       digitalWrite(relayPins[2], LOW);
     }
+
     digitalWrite(relayPins[1], LOW);
   }
   else
@@ -161,7 +150,6 @@ void loop()
   if (fingerprintInterruptFlag)
   {
     fingerprintInterruptFlag = false;
-
     // Ваш код для обработки прерывания от сканера отпечатков пальцев R503
     // Например, проверка идентификации отпечатка пальца и управление реле
   }
@@ -169,7 +157,6 @@ void loop()
   // Пауза между итерациями
   delay(iterationDelay);
 }
-
 // Обработчик прерывания для сканера отпечатков пальцев
 void fingerprintInterrupt()
 {
