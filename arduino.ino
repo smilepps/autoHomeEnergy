@@ -1,15 +1,17 @@
 // Подключение библиотек
-#include <Wire.h>            // Для работы с I2C
-#include <Adafruit_INA226.h> // Для работы с датчиком напряжения INA226
+#include <Wire.h>                 // Для работы с I2C
+#include <Adafruit_INA226.h>      // Для работы с датчиком напряжения INA226
+#include <Adafruit_Fingerprint.h> // Для работы со ёмкостным сканером отпечатков пальцев R503
 
 // Подключение датчика температуры к пину A0
 const int temperatureSensorPin = A0;
 
 // Подключение реле к пинам 2, 3, 4, 5
-const int relayPins[] = {2, 3, 4, 5};
+const int relayPins[] = {2, 3, 4, 5, 6, 7, 8, 9};
 const int numRelays = sizeof(relayPins) / sizeof(relayPins[0]);
 
 // Адрес датчика напряжения INA226
+// Если у вас плата Arduino UNO R3, то пины SDA и SCL для шины I2C находятся на пинах A4 и A5 соответственно.
 const uint8_t ina226Address = 0x40;
 
 // Создание объекта для работы с датчиком напряжения
@@ -21,9 +23,20 @@ bool switchState = false;
 
 // Константы задержек
 const unsigned long boilerRelayDelay = 1800000; // 30 минут
-const unsigned long starterRelayDelay = 1500; // 1.5 секунды
-const unsigned long ovenRelayDelay = 3600000; // 1 час
-const unsigned long iterationDelay = 1000; // 1 секунда
+const unsigned long starterRelayDelay = 1500;   // 1.5 секунды
+const unsigned long ovenRelayDelay = 3600000;   // 1 час
+const unsigned long iterationDelay = 1000;      // 1 секунда
+
+// Пины для подключения ёмкостного сканера отпечатков пальцев R503
+const int fingerprintSensorRX = 10;
+const int fingerprintSensorTX = 11;
+const int fingerprintSensorWAKEUP = 12;
+
+// Флаг, указывающий, что прерывание от сканера отпечатков пальцев произошло
+volatile bool fingerprintInterruptFlag = false;
+
+// Создание объекта для работы со ёмкостным сканером отпечатков пальцев R503
+Adafruit_Fingerprint fingerprintSensor = Adafruit_Fingerprint(&Serial);
 
 void setup()
 {
@@ -44,8 +57,29 @@ void setup()
     pinMode(relayPins[i], OUTPUT);
   }
 
-  // Настройка пина переключателя как входа
+  // Настройка пина переключателя поддежания температуры как входа
   pinMode(switchPin, INPUT);
+
+  pinMode(extraRelayPin, INPUT_PULLUP);
+
+  // Настройка прерывания для сканера отпечатков пальцев
+  attachInterrupt(digitalPinToInterrupt(fingerprintSensorWAKEUP), fingerprintInterrupt, FALLING);
+
+  // Настройка пинов для соединения с ёмкостным сканером отпечатков пальцев R503
+  SoftwareSerial mySerial(fingerprintSensorRX, fingerprintSensorTX);
+  mySerial.begin(57600);
+  fingerprintSensor.begin(mySerial);
+
+  if (fingerprintSensor.verifyPassword())
+  {
+    Serial.println("Сканер отпечатков пальцев найден!");
+  }
+  else
+  {
+    Serial.println("Сканер отпечатков пальцев не найден. Проверьте подключение.");
+    while (1)
+      ;
+  }
 }
 
 void loop()
@@ -60,8 +94,12 @@ void loop()
   // Считывание напряжения с датчика INA226
   float voltage = ina226.readBusVoltage();
 
-  Serial.print("  Температура: " + String(temperatureCelsius) + "°C");
-  Serial.print("  Напряжение: " + String(voltage) + " V");
+  Serial.print("  Температура: ");
+  Serial.print(temperatureCelsius);
+  Serial.print("°C");
+  Serial.print("  Напряжение: ");
+  Serial.print(voltage);
+  Serial.println(" V");
 
   // Управление реле в зависимости от значений температуры и напряжения
   if (voltage > 18.0 && voltage < 23.0)
@@ -73,14 +111,11 @@ void loop()
       delay(boilerRelayDelay);
       digitalWrite(relayPins[3], LOW);
     }
-
     // Включение реле стартера на заданное время
     digitalWrite(relayPins[0], HIGH);
     delay(starterRelayDelay);
     digitalWrite(relayPins[0], LOW);
-
     delay(iterationDelay); // Задержка
-
     if (temperatureCelsius < 25.0)
     {
       // Включение реле печки на заданное время
@@ -88,7 +123,6 @@ void loop()
       delay(ovenRelayDelay);
       digitalWrite(relayPins[2], LOW);
     }
-
     digitalWrite(relayPins[1], LOW);
   }
   else if (temperatureCelsius < 19.0 && switchState)
@@ -100,14 +134,11 @@ void loop()
       delay(boilerRelayDelay);
       digitalWrite(relayPins[3], LOW);
     }
-
     // Включение реле стартера на заданное время
     digitalWrite(relayPins[0], HIGH);
     delay(starterRelayDelay);
     digitalWrite(relayPins[0], LOW);
-
     delay(iterationDelay); // Задержка
-
     if (temperatureCelsius < 25.0)
     {
       // Включение реле печки на заданное время
@@ -115,7 +146,6 @@ void loop()
       delay(ovenRelayDelay);
       digitalWrite(relayPins[2], LOW);
     }
-
     digitalWrite(relayPins[1], LOW);
   }
   else
@@ -127,6 +157,129 @@ void loop()
     }
   }
 
+  // Проверка флага прерывания от сканера отпечатков пальцев
+  if (fingerprintInterruptFlag)
+  {
+    fingerprintInterruptFlag = false;
+
+    // Ваш код для обработки прерывания от сканера отпечатков пальцев R503
+    // Например, проверка идентификации отпечатка пальца и управление реле
+  }
+
   // Пауза между итерациями
   delay(iterationDelay);
+}
+
+// Обработчик прерывания для сканера отпечатков пальцев
+void fingerprintInterrupt()
+{
+  fingerprintInterruptFlag = true;
+
+  // Проверка количества отпечатков пальцев в базе данных
+  if (fingerprintSensor.getTemplateCount() < 5)
+  {
+    addFingerprints();
+  }
+  else
+  {
+    // Ожидание, пока палец не будет обнаружен
+    while (!fingerprintSensor.getImage())
+    {
+      delay(50);
+    }
+
+    // Создание изображения отпечатка пальца
+    int result = fingerprintSensor.image2Tz();
+    if (result != FINGERPRINT_OK)
+    {
+      Serial.println("Ошибка создания изображения отпечатка пальца");
+      return;
+    }
+
+    // Поиск отпечатка пальца в базе данных
+    result = fingerprintSensor.fingerFastSearch();
+    if (result == FINGERPRINT_OK)
+    {
+      uint8_t fingerID = fingerprintSensor.fingerID;
+      Serial.print("Идентификатор пальца: ");
+      Serial.println(fingerID);
+      switch (fingerID)
+      {
+      case 1:
+        addFingerprints();
+        break;
+      case 2:
+      case 3:
+        // Включение реле открытия главной двери
+        digitalWrite(relayPins[6], HIGH);
+        break;
+      case 4:
+      case 5:
+        // Выключение реле открытия главной двери
+        digitalWrite(relayPins[6], LOW);
+        break;
+      case 6:
+      case 7:
+        // Включение реле открытия задней двери
+        digitalWrite(relayPins[7], HIGH);
+        break;
+      case 8:
+      case 9:
+        // Выключение реле открытия задней двери
+        digitalWrite(relayPins[7], LOW);
+        break;
+      default:
+        break;
+      }
+    }
+  }
+}
+void addFingerprints()
+{
+  // Очистка базы данных и переход в режим добавления отпечатков
+  fingerprintSensor.emptyDatabase();
+
+  for (int i = 1; i < 10; i++)
+  {
+    addFingerprint(1);
+  }
+}
+void addFingerprint(uint8_t fingerID)
+{
+  // Ожидание, пока палец не будет обнаружен
+  while (!fingerprintSensor.getImage())
+  {
+    delay(50);
+  }
+
+  // Создание изображения отпечатка пальца
+  int result = fingerprintSensor.image2Tz();
+  if (result != FINGERPRINT_OK)
+  {
+    Serial.println("Ошибка создания изображения отпечатка пальца");
+    return;
+  }
+
+  // Сохранение отпечатка пальца в базе данных
+  result = fingerprintSensor.storeModel(fingerID);
+  if (result == FINGERPRINT_OK)
+  {
+    Serial.println("Отпечаток пальца успешно добавлен в базу данных");
+  }
+  else if (result == FINGERPRINT_PACKETRECIEVEERR)
+  {
+    Serial.println("Ошибка связи с датчиком отпечатков пальцев");
+  }
+  else if (result == FINGERPRINT_BADLOCATION)
+  {
+    Serial.println("Ошибка сохранения отпечатка пальца в базе данных");
+  }
+  else if (result == FINGERPRINT_FLASHERR)
+  {
+    Serial.println("Ошибка записи во флэш-память");
+  }
+  else
+  {
+    Serial.println("Неизвестная ошибка при добавлении отпечатка пальца");
+  }
 }
