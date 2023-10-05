@@ -19,6 +19,12 @@ Adafruit_INA226 ina226;
 const int switchPin = 6;
 bool switchState = false;
 
+// Константы задержек
+const unsigned long boilerRelayDelay = 1800000; // 30 минут
+const unsigned long starterRelayDelay = 1500; // 1.5 секунды
+const unsigned long ovenRelayDelay = 3600000; // 1 час
+const unsigned long iterationDelay = 1000; // 1 секунда
+
 void setup()
 {
   // Инициализация Serial для отладочного вывода
@@ -62,46 +68,54 @@ void loop()
   {
     if (temperatureCelsius < 10.0 && switchState)
     {
-      // Включение реле котла на 30 минут
+      // Включение реле котла на заданное время
       digitalWrite(relayPins[3], HIGH);
-      delay(1800000);
+      delay(boilerRelayDelay);
       digitalWrite(relayPins[3], LOW);
     }
-    // Включение реле стартера на 1.5 секунды
+
+    // Включение реле стартера на заданное время
     digitalWrite(relayPins[0], HIGH);
-    delay(1500);
+    delay(starterRelayDelay);
     digitalWrite(relayPins[0], LOW);
-    delay(180000); // Задержка 3 минуты
+
+    delay(iterationDelay); // Задержка
+
     if (temperatureCelsius < 25.0)
     {
-      // Включение реле печки на 1 час
+      // Включение реле печки на заданное время
       digitalWrite(relayPins[2], HIGH);
-      delay(3600000);
+      delay(ovenRelayDelay);
       digitalWrite(relayPins[2], LOW);
     }
+
     digitalWrite(relayPins[1], LOW);
   }
   else if (temperatureCelsius < 19.0 && switchState)
   {
     if (temperatureCelsius < 10.0 && voltage > 24.0)
     {
-      // Включение реле котла на 30 минут
+      // Включение реле котла на заданное время
       digitalWrite(relayPins[3], HIGH);
-      delay(1800000);
+      delay(boilerRelayDelay);
       digitalWrite(relayPins[3], LOW);
     }
-    // Включение реле стартера на 1.5 секунды
+
+    // Включение реле стартера на заданное время
     digitalWrite(relayPins[0], HIGH);
-    delay(1500);
+    delay(starterRelayDelay);
     digitalWrite(relayPins[0], LOW);
-    delay(180000); // Задержка 3 минуты
+
+    delay(iterationDelay); // Задержка
+
     if (temperatureCelsius < 25.0)
     {
-      // Включение реле печки на 1 час
+      // Включение реле печки на заданное время
       digitalWrite(relayPins[2], HIGH);
-      delay(3600000);
+      delay(ovenRelayDelay);
       digitalWrite(relayPins[2], LOW);
     }
+
     digitalWrite(relayPins[1], LOW);
   }
   else
@@ -114,5 +128,5 @@ void loop()
   }
 
   // Пауза между итерациями
-  delay(1000);
+  delay(iterationDelay);
 }
