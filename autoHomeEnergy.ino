@@ -199,21 +199,29 @@ void fingerprintInterrupt()
       case 3:
         // Включение реле открытия главной двери
         digitalWrite(relayPins[6], HIGH);
+        delay(100);
+        digitalWrite(relayPins[6], LOW);
         break;
       case 4:
       case 5:
         // Выключение реле открытия главной двери
-        digitalWrite(relayPins[6], LOW);
+        digitalWrite(relayPins[7], HIGH);
+        delay(100);
+        digitalWrite(relayPins[7], LOW);
         break;
       case 6:
       case 7:
         // Включение реле открытия задней двери
-        digitalWrite(relayPins[7], HIGH);
+        digitalWrite(relayPins[8], HIGH);
+        delay(100);
+        digitalWrite(relayPins[8], LOW);
         break;
       case 8:
       case 9:
         // Выключение реле открытия задней двери
-        digitalWrite(relayPins[7], LOW);
+        digitalWrite(relayPins[9], HIGH);
+        delay(100);
+        digitalWrite(relayPins[9], LOW);
         break;
       default:
         break;

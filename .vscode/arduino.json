@@ -1,5 +1,6 @@
 {
     "board": "arduino:avr:uno",
     "programmer": "arduinoisp",
-    "sketch": "autoHomeEnergy.ino"
+    "sketch": "autoHomeEnergy.ino",
+    "port": "COM6"
 }
