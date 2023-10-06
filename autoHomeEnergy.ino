@@ -20,7 +20,7 @@ bool switchState = false;
 const unsigned long boilerRelayDelay = 1800000; // 30 минут
 const unsigned long starterRelayDelay = 1500;   // 1.5 секунды
 const unsigned long ovenRelayDelay = 3600000;   // 1 час
-const unsigned long iterationDelay = 1000;      // 1 секунда
+const unsigned long iterationDelay = 3000;      // 3 секунда
 
 // Пины для подключения ёмкостного сканера отпечатков пальцев R503
 const int fingerprintSensorRX = 10;
@@ -37,10 +37,8 @@ void setup()
 {
   // Инициализация Serial для отладочного вывода
   Serial.begin(9600);
-
   // Инициализация датчика напряжения
   ina226.begin();
-
   // Настройка пинов реле как выходов
   for (int i = 0; i < numRelays; i++)
   {
@@ -53,8 +51,8 @@ void setup()
   // Настройка пинов для соединения с ёмкостным сканером отпечатков пальцев R503
   SoftwareSerial mySerial(fingerprintSensorRX, fingerprintSensorTX);
   mySerial.begin(57600);
-  fingerprintSensor.begin(mySerial);
 
+  // fingerprintSensor.begin(mySerial);
   if (fingerprintSensor.verifyPassword())
   {
     Serial.println("Сканер отпечатков пальцев найден!");
@@ -62,8 +60,6 @@ void setup()
   else
   {
     Serial.println("Сканер отпечатков пальцев не найден. Проверьте подключение.");
-    while (1)
-      ;
   }
 }
 
@@ -82,9 +78,9 @@ void loop()
   Serial.print("  Температура: ");
   Serial.print(temperatureCelsius);
   Serial.println("°C");
-  Serial.print("  Напряжение: ");
-  Serial.print(voltage);
-  Serial.println(" V");
+  // Serial.print("  Напряжение: ");
+  // Serial.print(voltage);
+  // Serial.println(" V");
 
   // Управление реле в зависимости от значений температуры и напряжения
   if (voltage > 18.0 && voltage < 23.0)
