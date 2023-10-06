@@ -79,8 +79,12 @@ void loop()
   // Считывание напряжения с датчика INA226
   float voltage = ina226.getVoltage();
 
-  Serial.print("  Температура: " + String(temperatureCelsius) + "°C");
-  Serial.print("  Напряжение: " + String(voltage) + " V");
+  Serial.print("  Температура: ");
+  Serial.print(temperatureCelsius);
+  Serial.println("°C");
+  Serial.print("  Напряжение: ");
+  Serial.print(voltage);
+  Serial.println(" V");
 
   // Управление реле в зависимости от значений температуры и напряжения
   if (voltage > 18.0 && voltage < 23.0)
